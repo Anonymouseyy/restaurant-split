@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restaruant Splitter</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f2f4f7;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+  }
+  .container {
+    max-width: 800px;
+    width: 100%;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #333;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-bottom: 25px;
+    justify-content: space-between;
+  }
+  .controls label {
+    flex: 1 1 45%;
+  }
+  input[type="number"], input[type="text"] {
+    width: 90%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-top: 5px;
+    font-size: 1em;
+  }
+  button {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: 0.2s;
+  }
+  button:hover {
+    background: #45a049;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+  }
+  th, td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+  }
+  th {
+    background: #f4f6f8;
+  }
+  .remove-btn {
+    background: #f44336;
+  }
+  .remove-btn:hover {
+    background: #e53935;
+  }
+  .shared-section {
+    margin-bottom: 20px;
+  }
+  .shared-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .shared-item input[type="text"] {
+    flex: 1;
+  }
+  .shared-item input[type="number"] {
+    width: 120px;
+  }
+  @media (max-width: 600px) {
+    .controls label {
+      flex: 1 1 100%;
+    }
+    .shared-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .shared-item input[type="number"] {
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Restaurant Splitter</h1>
+
+  <div class="controls">
+    <label>
+      Tip %:
+      <input type="number" id="tip" value="0" min="0" step="1">
+    </label>
+    <label>
+      Tax %:
+      <input type="number" id="tax" value="0" min="0" step="1">
+    </label>
+    <button onclick="addPerson()">Add Person</button>
+  </div>
+
+  <div class="shared-section">
+    <h3>Shared Items</h3>
+    <div id="shared-items">
+      <!-- Shared items will go here -->
+    </div>
+    <button onclick="addSharedItem()">Add Shared Item</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Order ($)</th>
+        <th>Amount Owed ($)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="people-table">
+      <!-- People rows -->
+    </tbody>
+  </table>
+
+  <div style="text-align: right; font-weight: bold; font-size: 1.1em;">
+    Grand Total: $<span id="grand-total">0.00</span>
+  </div>
+</div>
+
+<script>
+let personCount = 0;
+let sharedCount = 0;
+
+function addPerson(name='', order='') {
+  personCount++;
+  const table = document.getElementById('people-table');
+
+  const row = document.createElement('tr');
+  row.id = 'person-' + personCount;
+  row.innerHTML = `
+    <td><input type="text" class="name" placeholder="Name" value="${name}"></td>
+    <td><input type="number" class="order" placeholder="0" min="0" step="0.01" value="${order}"></td>
+    <td class="amount">0.00</td>
+    <td><button class="remove-btn" onclick="removePerson(${personCount})">Remove</button></td>
+  `;
+
+  table.appendChild(row);
+
+  row.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', calculate);
+  });
+
+  calculate();
+}
+
+function removePerson(id) {
+  document.getElementById('person-' + id).remove();
+  calculate();
+}
+
+function addSharedItem(name='', price='') {
+  sharedCount++;
+  const container = document.getElementById('shared-items');
+
+  const div = document.createElement('div');
+  div.className = 'shared-item';
+  div.id = 'shared-' + sharedCount;
+  div.innerHTML = `
+    <input type="text" placeholder="Shared item" class="shared-name" value="${name}">
+    <input type="number" placeholder="Price" min="0" step="0.01" class="shared-price" value="${price}">
+    <button class="remove-btn" onclick="removeSharedItem(${sharedCount})">Remove</button>
+  `;
+
+  container.appendChild(div);
+
+  div.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', calculate);
+  });
+
+  calculate();
+}
+
+function removeSharedItem(id) {
+  document.getElementById('shared-' + id).remove();
+  calculate();
+}
+
+function calculate() {
+  const names = document.querySelectorAll('.name');
+  const orders = document.querySelectorAll('.order');
+  const amounts = document.querySelectorAll('.amount');
+  const tipPercent = parseFloat(document.getElementById('tip').value) || 0;
+  const taxPercent = parseFloat(document.getElementById('tax').value) || 0;
+
+  // People total
+  let totalOrder = 0;
+  let people = [];
+  for (let i = 0; i < names.length; i++) {
+    let name = names[i].value || 'Person ' + (i + 1);
+    let order = parseFloat(orders[i].value) || 0;
+    people.push({ name, order });
+    totalOrder += order;
+  }
+
+  // Shared items
+  const sharedPrices = document.querySelectorAll('.shared-price');
+  let totalShared = 0;
+  sharedPrices.forEach(priceInput => {
+    totalShared += parseFloat(priceInput.value) || 0;
+  });
+  const sharedPerPerson = names.length > 0 ? totalShared / names.length : 0;
+
+  const totalTax = (totalOrder + totalShared) * taxPercent / 100;
+  const totalTip = (totalOrder + totalShared) * tipPercent / 100;
+  const grandTotal = totalOrder + totalShared + totalTax + totalTip;
+
+  people.forEach((p, i) => {
+    let share = p.order + sharedPerPerson + (p.order + sharedPerPerson) / (totalOrder + totalShared || 1) * (totalTax + totalTip);
+    amounts[i].textContent = share.toFixed(2);
+  });
+
+  document.getElementById('grand-total').textContent = grandTotal.toFixed(2);
+}
+
+document.getElementById('tip').addEventListener('input', calculate);
+document.getElementById('tax').addEventListener('input', calculate);
+
+// Initialize with two people and one shared item
+addPerson();
+addPerson();
+addSharedItem();
+</script>
+
+</body>
+</html>
